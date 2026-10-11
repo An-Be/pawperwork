@@ -1,6 +1,7 @@
 import "dotenv/config";
-import { PrismaClient } from "../src/generated/prisma/client.ts";
+import { PrismaClient } from "../src/lib/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { waiverDocumentHash } from "../src/lib/server/hash";
 
 /**
  * Demo data (spec §9): one business, two clients, three pets, mixed vax states
@@ -19,9 +20,7 @@ const prisma = new PrismaClient({
 /** Midnight UTC, `days` from today — matches how the vax engine compares. */
 function dayOffset(days: number): Date {
   const now = new Date();
-  return new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + days),
-  );
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + days));
 }
 
 async function main() {
@@ -153,13 +152,9 @@ async function main() {
       clientId: jamie.id,
       waiverVersion: serviceWaiver.version,
       signatureText: "Jamie Rivera",
-      documentHash: (await import("../src/lib/hash.ts")).waiverDocumentHash(
-        serviceWaiver.bodyMarkdown,
-        serviceWaiver.version,
-      ),
+      documentHash: waiverDocumentHash(serviceWaiver.bodyMarkdown, serviceWaiver.version),
       ipAddress: "203.0.113.42",
-      userAgent:
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15",
+      userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15",
       signedAt: dayOffset(-12),
     },
   });

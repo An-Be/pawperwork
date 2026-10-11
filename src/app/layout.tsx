@@ -1,28 +1,23 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono, Nunito } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { shadcn } from "@clerk/ui/themes";
-import { Toaster } from "@/components/ui/sonner";
-import { isClerkConfigured } from "@/lib/env";
+import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
+import localFont from "next/font/local";
+import { GeistMono } from "geist/font/mono";
+import { connection } from "next/server";
+import { PostHogIdentify } from "@/components/site/posthog-identify";
+import { Toaster } from "@/components/ui/toaster";
+import { site } from "@/config/site";
+import { isClerkConfigured } from "@/lib/server/env";
 import "./globals.css";
+import "./clerk-theme.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-// Rounded, warm display face for headings — the body stays on Geist Sans
-// (clean, highly legible for a form people fill in on their phone), while
-// headings carry the "friendly neighborhood pet business" personality.
-const nunito = Nunito({
-  variable: "--font-nunito",
-  subsets: ["latin"],
-  weight: ["600", "700", "800"],
+// Fonts are bundled locally so builds never depend on Google Fonts being reachable.
+const spaceGrotesk = localFont({
+  src: "./fonts/SpaceGrotesk-Variable.woff2",
+  weight: "300 700",
+  variable: "--font-space-grotesk",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -36,7 +31,17 @@ export const metadata: Metadata = {
     "chase an expired rabies certificate again.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export const viewport: Viewport = {
+  themeColor: site.themeColor,
+  width: "device-width",
+  initialScale: 1,
+};
+
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  // The nonce-based CSP (src/proxy.ts) needs every page rendered per request;
+  // a statically rendered page has no request to read the nonce from.
+  await connection();
+
   const content = (
     <>
       {children}
@@ -45,24 +50,22 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   );
 
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${nunito.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+    <html lang="en" className={`${spaceGrotesk.variable} ${GeistMono.variable}`}>
+      <body className="flex min-h-dvh flex-col">
         {/*
-          ClerkProvider belongs INSIDE <body>, not wrapping <html> — wrapping
-          the document element is not supported and can inject markup outside
-          the body.
+          Conditional because ClerkProvider throws without a publishable key,
+          and the public intake form must still render before credentials are
+          provisioned. Every Clerk component below it is guarded the same way
+          (see src/lib/server/env.ts).
 
-          It is conditional because ClerkProvider throws without a publishable
-          key, and the public intake form must still render before credentials
-          are provisioned. Every Clerk component below it is guarded the same
-          way; see src/lib/env.ts.
+          dynamic: renders per request so Clerk can tag its own <script> with
+          the CSP nonce (src/lib/clerk-csp.ts). Without it, a strict CSP blocks clerk-js.
         */}
         {isClerkConfigured() ? (
-          // shadcn theme, since this project uses shadcn/ui (components.json).
-          <ClerkProvider appearance={{ theme: shadcn }}>{content}</ClerkProvider>
+          <ClerkProvider dynamic appearance={{ theme: shadcn, variables: { borderRadius: "0px" } }}>
+            {content}
+            <PostHogIdentify />
+          </ClerkProvider>
         ) : (
           content
         )}

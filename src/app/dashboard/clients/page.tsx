@@ -1,149 +1,106 @@
 import Link from "next/link";
-import { PawPrint, Search } from "lucide-react";
-import { requireBusiness } from "@/lib/auth";
-import { getClientRows } from "@/lib/queries";
-import { formatDate } from "@/lib/email";
-import { VaxStatusBadge } from "@/components/ui/vax-status-badge";
-import { Badge } from "@/components/ui/badge";
+import { VaxStatusTag } from "@/components/vax/vax-status";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { formatDate } from "@/lib/format";
+import { requireBusiness } from "@/lib/server/auth";
+import { getClientRows } from "@/lib/server/queries";
+import { clientSearchSchema } from "@/lib/validation";
 
 export const metadata = { title: "Clients" };
-export const dynamic = "force-dynamic";
 
-/** First letters of each name, for the warm little avatar circle. */
-function initials(firstName: string, lastName: string): string {
-  return `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase();
-}
-
-export default async function ClientsPage({
-  searchParams,
-}: PageProps<"/dashboard/clients">) {
+export default async function ClientsPage({ searchParams }: PageProps<"/dashboard/clients">) {
   const business = await requireBusiness();
   const { q } = await searchParams;
-  const search = typeof q === "string" ? q : undefined;
+  const parsed = clientSearchSchema.safeParse({ search: typeof q === "string" ? q : undefined });
+  const search = parsed.success ? parsed.data.search : undefined;
   const clients = await getClientRows(business.id, { search });
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-heading text-2xl font-bold tracking-tight">
-            Clients
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {clients.length} {search ? "matching" : ""} client
-            {clients.length === 1 ? "" : "s"}
-          </p>
+          <span className="label text-mute">
+            {clients.length} {search ? "matching" : ""} client{clients.length === 1 ? "" : "s"}
+          </span>
+          <h1 className="display text-4xl">Clients</h1>
         </div>
-        {/* GET form keeps the search in the URL, so it is shareable. */}
-        <form className="flex gap-2" role="search">
-          <div className="relative">
-            <Search
-              className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
-            <Input
-              name="q"
-              defaultValue={search ?? ""}
-              placeholder="Search name, email or pet"
-              aria-label="Search clients"
-              className="w-64 pl-8"
-            />
-          </div>
-          <Button type="submit" variant="outline">
+        {/* GET form keeps the search in the URL, so it survives a reload. */}
+        <form className="flex w-full items-stretch sm:w-auto" role="search">
+          <Input
+            name="q"
+            type="search"
+            defaultValue={search ?? ""}
+            placeholder="Name, email or pet"
+            aria-label="Search clients"
+            className="min-w-0 flex-1 border-r-0 sm:w-64"
+          />
+          <Button type="submit" variant="primary">
             Search
           </Button>
           {search ? (
-            <Button
-              variant="ghost"
-              nativeButton={false}
-              render={<Link href="/dashboard/clients" />}
-            >
+            <Link href="/dashboard/clients" className={buttonVariants({ variant: "ghost" })}>
               Clear
-            </Button>
+            </Link>
           ) : null}
         </form>
       </div>
 
       {clients.length === 0 ? (
-        <Card className="items-center gap-3 border border-dashed py-14 text-center ring-0 shadow-none">
-          <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-accent text-accent-foreground">
-            <PawPrint className="size-5" aria-hidden />
-          </span>
-          <p className="px-4 text-sm text-muted-foreground">
-            {search
-              ? "No clients match that search."
-              : "No clients yet. Share your intake link from the overview page."}
-          </p>
-        </Card>
+        <p className="border border-dashed border-ink p-10 text-center text-sm text-mute">
+          {search ? "No clients match that search." : "No clients yet. Share your intake link from the overview."}
+        </p>
       ) : (
-        <Card className="overflow-hidden py-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Client</TableHead>
-                <TableHead>Pets</TableHead>
-                <TableHead>Vaccinations</TableHead>
-                <TableHead>Waivers</TableHead>
-                <TableHead className="text-right">Submitted</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <div className="overflow-x-auto border border-ink">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead className="border-b border-ink">
+              <tr className="label text-mute">
+                <th scope="col" className="px-4 py-3 font-normal">
+                  Client
+                </th>
+                <th scope="col" className="px-4 py-3 font-normal">
+                  Pets
+                </th>
+                <th scope="col" className="px-4 py-3 font-normal">
+                  Vaccinations
+                </th>
+                <th scope="col" className="px-4 py-3 font-normal">
+                  Waivers
+                </th>
+                <th scope="col" className="px-4 py-3 text-right font-normal">
+                  Submitted
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-rule">
               {clients.map((client) => (
-                <TableRow key={client.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold text-secondary-foreground">
-                        {initials(client.firstName, client.lastName)}
-                      </span>
-                      <div className="min-w-0">
-                        <Link
-                          href={`/dashboard/clients/${client.id}`}
-                          className="font-medium underline-offset-4 hover:underline"
-                        >
-                          {client.firstName} {client.lastName}
-                        </Link>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {client.email}
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {client.petNames.join(", ") || "—"}
-                  </TableCell>
-                  <TableCell>
-                    <VaxStatusBadge status={client.status} />
-                  </TableCell>
-                  <TableCell>
+                <tr key={client.id} className="hover:bg-wash">
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/dashboard/clients/${client.id}`}
+                      className="font-medium text-ink underline-offset-4 hover:underline"
+                    >
+                      {client.firstName} {client.lastName}
+                    </Link>
+                    <p className="truncate text-xs text-mute">{client.email}</p>
+                  </td>
+                  <td className="px-4 py-3">{client.petNames.join(", ") || "—"}</td>
+                  <td className="px-4 py-3">
+                    <VaxStatusTag status={client.status} />
+                  </td>
+                  <td className="px-4 py-3">
                     {client.unsignedWaivers > 0 ? (
-                      <Badge variant="outline">
-                        {client.unsignedWaivers} unsigned
-                      </Badge>
+                      <span className="label border border-ink px-2 py-0.5">{client.unsignedWaivers} unsigned</span>
                     ) : (
-                      <span className="text-sm text-muted-foreground">
-                        All signed
-                      </span>
+                      <span className="text-mute">All signed</span>
                     )}
-                  </TableCell>
-                  <TableCell className="text-right text-sm text-muted-foreground">
-                    {formatDate(client.createdAt)}
-                  </TableCell>
-                </TableRow>
+                  </td>
+                  <td className="px-4 py-3 text-right text-mute">{formatDate(client.createdAt)}</td>
+                </tr>
               ))}
-            </TableBody>
-          </Table>
-        </Card>
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
