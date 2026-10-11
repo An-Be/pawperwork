@@ -16,11 +16,11 @@ import { AuthControls } from "@/components/ui/auth-controls";
 import { isClerkConfigured } from "@/lib/env";
 
 export const metadata: Metadata = {
-  title: "Free pet intake forms & vaccination tracking",
+  // absolute: skip the layout's "%s · Pet Intake" template; the brand leads here.
+  title: { absolute: "Pawperwork: Intake and Vax Tracking for Pet Care" },
   description:
-    "One branded intake link collects pet profiles, vaccination records and " +
-    "signed waivers. Automatic reminders chase expiring rabies, distemper and " +
-    "bordetella records so you never have to.",
+    "One intake link for your grooming, boarding, or daycare business. Owners " +
+    "submit profiles, upload vax records, and e-sign waivers from their phone.",
 };
 
 const STEPS = [
@@ -93,8 +93,7 @@ export default function LandingPage() {
             🐾 For groomers, boarders, daycares and walkers
           </span>
           <h1 className="mt-5 font-heading text-4xl font-extrabold tracking-tight text-balance sm:text-5xl">
-            Free pet intake forms, with vaccination tracking that chases
-            itself
+            Paperwork that keeps up with the pets.
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-lg text-pretty text-muted-foreground">
             Send one link. Get pet profiles, vaccination records and signed

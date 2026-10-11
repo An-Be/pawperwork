@@ -27,8 +27,8 @@ const nunito = Nunito({
 
 export const metadata: Metadata = {
   title: {
-    default: "Pet Intake — free intake forms & vaccination tracking",
-    template: "%s · Pet Intake",
+    default: "Pawperwork: Intake and Vax Tracking for Pet Care",
+    template: "%s · Pawperwork",
   },
   description:
     "One branded intake link for groomers, boarders, daycares and walkers. " +
