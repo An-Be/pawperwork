@@ -1,49 +1,36 @@
-import { History } from "lucide-react";
-import { requireBusiness } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { getBusinessAuditLog } from "@/lib/queries";
+import { AuditTimeline } from "@/components/activity/audit-timeline";
+import { IntakeLink } from "@/components/dashboard/intake-link";
+import { Panel } from "@/components/dashboard/panel";
+import { SettingsForm } from "@/components/settings/settings-form";
+import { WaiverEditor } from "@/components/settings/waiver-editor";
+import { requireBusiness } from "@/lib/server/auth";
+import { db } from "@/lib/server/db";
+import { getBusinessAuditLog } from "@/lib/server/queries";
 import { parseVaxRequirements } from "@/lib/vax";
-import { appUrl } from "@/lib/email";
-import { CopyLink } from "@/components/ui/copy-link";
-import { AuditTimeline } from "@/components/ui/audit-timeline";
-import { Card, CardContent } from "@/components/ui/card";
-import { SettingsForm } from "./settings-form";
-import { WaiverEditor } from "./waiver-editor";
-import { Separator } from "@/components/ui/separator";
 
 export const metadata = { title: "Settings" };
-export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const business = await requireBusiness();
   const [waivers, activity] = await Promise.all([
-    prisma.waiver.findMany({
+    db.waiver.findMany({
       where: { businessId: business.id },
       orderBy: { createdAt: "asc" },
-      include: { _count: { select: { signatures: true } } },
+      select: { id: true, title: true, bodyMarkdown: true, version: true, _count: { select: { signatures: true } } },
     }),
     getBusinessAuditLog(business.id),
   ]);
 
   return (
-    <div className="space-y-10">
-      <div>
-        <h1 className="font-heading text-2xl font-bold tracking-tight">
-          Settings
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Your profile, which vaccinations you require, and your waivers.
-        </p>
+    <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-6">
+        <div>
+          <span className="label text-mute">{business.name}</span>
+          <h1 className="display text-4xl">Settings</h1>
+          <p className="mt-2 text-sm text-mute">Your profile, which vaccinations you require, and your waivers.</p>
+        </div>
+        <IntakeLink slug={business.slug} />
       </div>
-
-      <div className="max-w-xl">
-        <CopyLink
-          label="Your public intake link"
-          url={appUrl(`/intake/${business.slug}`)}
-        />
-      </div>
-
-      <Separator />
 
       <SettingsForm
         business={{
@@ -56,9 +43,8 @@ export default async function SettingsPage() {
         }}
       />
 
-      <Separator />
-
       <WaiverEditor
+        n="03"
         waivers={waivers.map((waiver) => ({
           id: waiver.id,
           title: waiver.title,
@@ -68,22 +54,9 @@ export default async function SettingsPage() {
         }))}
       />
 
-      <Separator />
-
-      <div className="space-y-3">
-        <h2 className="flex items-center gap-2 font-heading text-lg font-bold">
-          <History className="size-4 text-primary" aria-hidden />
-          Recent changes
-        </h2>
-        <Card>
-          <CardContent className="pt-6">
-            <AuditTimeline
-              entries={activity}
-              emptyLabel="No changes recorded yet."
-            />
-          </CardContent>
-        </Card>
-      </div>
+      <Panel n="04" title="Recent changes">
+        <AuditTimeline entries={activity} emptyLabel="No changes recorded yet." />
+      </Panel>
     </div>
   );
 }

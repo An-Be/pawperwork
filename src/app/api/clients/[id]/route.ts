@@ -1,23 +1,15 @@
-import type { NextRequest } from "next/server";
-import { requireBusinessApi } from "@/lib/auth";
-import { jsonError } from "@/lib/api-errors";
-import { parseIdParam } from "@/lib/route-input";
-import { getClientDetail } from "@/lib/queries";
+import { requireBusinessApi } from "@/lib/server/auth";
+import { json, notFound } from "@/lib/server/http";
+import { getClientDetail } from "@/lib/server/queries";
+import { parseId } from "@/lib/validation";
 
-export async function GET(
-  request: NextRequest,
-  ctx: RouteContext<"/api/clients/[id]">,
-) {
-  try {
-    const business = await requireBusinessApi(request);
-    const { id } = await ctx.params;
-    const clientId = parseIdParam(id);
-    const detail = await getClientDetail(business.id, clientId);
-    if (!detail) {
-      return Response.json({ error: "Client not found" }, { status: 404 });
-    }
-    return Response.json(detail);
-  } catch (error) {
-    return jsonError(error);
-  }
+export async function GET(_req: Request, ctx: RouteContext<"/api/clients/[id]">) {
+  const auth = await requireBusinessApi();
+  if (!auth.ok) return auth.response;
+  const clientId = parseId((await ctx.params).id);
+  if (!clientId) return notFound();
+
+  const detail = await getClientDetail(auth.business.id, clientId);
+  if (!detail) return notFound();
+  return json(detail);
 }

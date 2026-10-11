@@ -1,56 +1,46 @@
-import type { NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
-import { requireBusinessApi } from "@/lib/auth";
-import { jsonError } from "@/lib/api-errors";
-import {
-  parseBody,
-  parseIdParam,
-  readOptionalJson,
-} from "@/lib/route-input";
-import { vaccinationVerifySchema } from "@/lib/validation";
-import { recordAudit } from "@/lib/audit";
+import { recordAudit } from "@/lib/server/audit";
+import { requireBusinessApi } from "@/lib/server/auth";
+import { db } from "@/lib/server/db";
+import { json, notFound, parseJsonBody, rejectCrossSite } from "@/lib/server/http";
+import { parseId, vaccinationVerifySchema } from "@/lib/validation";
 
-/** Marks an owner-uploaded record as checked by the business (spec §3). */
-export async function PATCH(
-  request: NextRequest,
-  ctx: RouteContext<"/api/vaccinations/[id]/verify">,
-) {
-  try {
-    const business = await requireBusinessApi(request);
-    const { id } = await ctx.params;
-    const vaccinationId = parseIdParam(id);
+/**
+ * Marks an owner-uploaded record as checked by the business. `verified: false`
+ * un-verifies, so a mistaken click is recoverable.
+ */
+export async function PATCH(req: Request, ctx: RouteContext<"/api/vaccinations/[id]/verify">) {
+  const blocked = rejectCrossSite(req);
+  if (blocked) return blocked;
+  const auth = await requireBusinessApi();
+  if (!auth.ok) return auth.response;
+  const { business } = auth;
 
-    // An absent body means "verify"; `verified: false` un-verifies, so a
-    // mistaken click is recoverable.
-    const { verified } = parseBody(
-      vaccinationVerifySchema,
-      await readOptionalJson(request),
-    );
+  const vaccinationId = parseId((await ctx.params).id);
+  if (!vaccinationId) return notFound();
+  const body = await parseJsonBody(req, vaccinationVerifySchema);
+  if (!body.ok) return body.response;
+  const { verified } = body.data;
 
-    const existing = await prisma.vaccination.findFirst({
-      where: { id: vaccinationId, pet: { client: { businessId: business.id } } },
-      select: { id: true, type: true, pet: { select: { clientId: true } } },
-    });
-    if (!existing) {
-      return Response.json({ error: "Vaccination not found" }, { status: 404 });
-    }
+  const existing = await db.vaccination.findFirst({
+    where: { id: vaccinationId, pet: { client: { businessId: business.id } } },
+    select: { id: true, type: true, pet: { select: { clientId: true } } },
+  });
+  if (!existing) return notFound();
 
-    const updated = await prisma.vaccination.update({
-      where: { id: existing.id },
-      data: { verified },
-    });
+  const updated = await db.vaccination.update({
+    where: { id: existing.id },
+    data: { verified },
+    select: { id: true, verified: true },
+  });
 
-    await recordAudit({
-      businessId: business.id,
-      action: "vaccination.verify",
-      targetType: "Vaccination",
-      targetId: existing.id,
-      clientId: existing.pet.clientId,
-      metadata: { verified, type: existing.type },
-    });
+  await recordAudit({
+    businessId: business.id,
+    action: "vaccination.verify",
+    targetType: "Vaccination",
+    targetId: existing.id,
+    clientId: existing.pet.clientId,
+    metadata: { verified, type: existing.type },
+  });
 
-    return Response.json(updated);
-  } catch (error) {
-    return jsonError(error);
-  }
+  return json(updated);
 }

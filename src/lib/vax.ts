@@ -1,4 +1,4 @@
-import { ReminderType } from "@/generated/prisma/enums";
+import { ReminderType } from "@/lib/generated/prisma/enums";
 
 /**
  * Vaccination status is DERIVED, never stored (spec §9). Everything here is a
@@ -56,11 +56,7 @@ export function parseVaxRequirements(value: unknown): VaxRequirement[] {
 
 /** Midnight UTC for a date, so comparisons are whole days and DST-stable. */
 function startOfUtcDay(date: Date): number {
-  return Date.UTC(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate(),
-  );
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
 const MS_PER_DAY = 86_400_000;
@@ -70,9 +66,7 @@ const MS_PER_DAY = 86_400_000;
  * 0 means it expires today, which still counts as EXPIRING, not EXPIRED.
  */
 export function daysUntil(expiresAt: Date, now: Date = new Date()): number {
-  return Math.round(
-    (startOfUtcDay(expiresAt) - startOfUtcDay(now)) / MS_PER_DAY,
-  );
+  return Math.round((startOfUtcDay(expiresAt) - startOfUtcDay(now)) / MS_PER_DAY);
 }
 
 type VaxRecordLike = {
@@ -85,10 +79,7 @@ type VaxRecordLike = {
  * A record with no expiry date reads as MISSING: a photo may be on file but
  * the dates are unknown, so the business still has paperwork to chase.
  */
-export function statusForRecord(
-  record: VaxRecordLike | null | undefined,
-  now: Date = new Date(),
-): VaxStatus {
+export function statusForRecord(record: VaxRecordLike | null | undefined, now: Date = new Date()): VaxStatus {
   if (!record || !record.expiresAt) return "MISSING";
   const days = daysUntil(record.expiresAt, now);
   if (days < 0) return "EXPIRED";
@@ -100,10 +91,7 @@ export function statusForRecord(
  * The record that currently governs a type is the one expiring furthest out —
  * a renewal supersedes the lapsed record it replaces.
  */
-export function currentRecordForType<T extends VaxRecordLike>(
-  records: readonly T[],
-  type: string,
-): T | undefined {
+export function currentRecordForType<T extends VaxRecordLike>(records: readonly T[], type: string): T | undefined {
   const key = type.trim().toLowerCase();
   let best: T | undefined;
   for (const record of records) {
@@ -154,9 +142,7 @@ export function summarizePet<T extends VaxRecordLike>(
       status: statusForRecord(record, now),
       expiresAt: record?.expiresAt ?? null,
       verified: record?.verified ?? false,
-      daysUntilExpiry: record?.expiresAt
-        ? daysUntil(record.expiresAt, now)
-        : null,
+      daysUntilExpiry: record?.expiresAt ? daysUntil(record.expiresAt, now) : null,
     });
   }
 
@@ -173,33 +159,25 @@ export function summarizePet<T extends VaxRecordLike>(
       status: statusForRecord(current, now),
       expiresAt: current?.expiresAt ?? null,
       verified: current?.verified ?? false,
-      daysUntilExpiry: current?.expiresAt
-        ? daysUntil(current.expiresAt, now)
-        : null,
+      daysUntilExpiry: current?.expiresAt ? daysUntil(current.expiresAt, now) : null,
     });
   }
 
   const required = byType.filter((entry) => entry.required);
   const overall = required.reduce<VaxStatus>(
-    (worst, entry) =>
-      SEVERITY[entry.status] > SEVERITY[worst] ? entry.status : worst,
+    (worst, entry) => (SEVERITY[entry.status] > SEVERITY[worst] ? entry.status : worst),
     "VALID",
   );
 
   return {
     overall,
     byType,
-    unverifiedCount: required.filter(
-      (entry) => entry.status !== "MISSING" && !entry.verified,
-    ).length,
+    unverifiedCount: required.filter((entry) => entry.status !== "MISSING" && !entry.verified).length,
   };
 }
 
 export function worstStatus(statuses: readonly VaxStatus[]): VaxStatus {
-  return statuses.reduce<VaxStatus>(
-    (worst, status) => (SEVERITY[status] > SEVERITY[worst] ? status : worst),
-    "VALID",
-  );
+  return statuses.reduce<VaxStatus>((worst, status) => (SEVERITY[status] > SEVERITY[worst] ? status : worst), "VALID");
 }
 
 /**
@@ -208,10 +186,7 @@ export function worstStatus(statuses: readonly VaxStatus[]): VaxStatus {
  * reminder per record, and the 7-day dedupe in the cron keeps a slow window
  * from re-firing the same type.
  */
-export function dueReminder(
-  expiresAt: Date | null,
-  now: Date = new Date(),
-): ReminderType | null {
+export function dueReminder(expiresAt: Date | null, now: Date = new Date()): ReminderType | null {
   if (!expiresAt) return null;
   const days = daysUntil(expiresAt, now);
   if (days > EXPIRING_WINDOW_DAYS) return null;

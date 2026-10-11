@@ -1,13 +1,10 @@
-// Pet Intake & Vax Tracker — data model
-// Prisma 7: `prisma-client` generator requires an explicit output path and a
-// driver adapter at runtime. Datasource URL lives in prisma7.config.ts.
+// Pawperwork data model
+// Prisma 7: the datasource URL lives in prisma.config.ts, not here.
+// The client is generated as TypeScript into src/lib/generated/prisma (gitignored).
 
 generator client {
   provider = "prisma-client"
-  output   = "../src/generated/prisma"
-  // Explicit extensions let Node resolve the generated client directly when
-  // running prisma/seed.ts via native TypeScript stripping.
-  importFileExtension = "ts"
+  output   = "../src/lib/generated/prisma"
 }
 
 datasource db {
