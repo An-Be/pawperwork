@@ -4,6 +4,7 @@ import { SignInOtpForm } from "@/components/auth/sign-in-otp-form";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { Shell } from "@/components/ui/shell";
+import { site } from "@/config/site";
 import { isClerkConfigured } from "@/lib/server/env";
 
 export const metadata = { title: "Sign in" };
@@ -22,10 +23,16 @@ export default function SignInPage() {
               </div>
               <SignInOtpForm />
               <p className="text-sm text-mute">
-                New here?{" "}
-                <Link href="/sign-up" className="text-ink underline underline-offset-2">
-                  Create an account
-                </Link>
+                {site.signupsOpen ? (
+                  <>
+                    New here?{" "}
+                    <Link href="/sign-up" className="text-ink underline underline-offset-2">
+                      Create an account
+                    </Link>
+                  </>
+                ) : (
+                  "New accounts are coming soon."
+                )}
               </p>
             </>
           ) : (

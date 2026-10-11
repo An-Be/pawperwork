@@ -8,6 +8,11 @@ export const site = {
   description:
     "One intake link for your grooming, boarding, or daycare business. Owners submit profiles, " +
     "upload vax records, and e-sign waivers from their phone.",
+  /**
+   * New business sign-ups. Off until transactional email (Resend) is set up, since
+   * reminders and invites depend on it. Sign-in keeps working for existing accounts.
+   */
+  signupsOpen: false,
   /** Shown in the footer. Keep it short. */
   tagline: "Pet paperwork, handled.",
   /** Footer credit link. */

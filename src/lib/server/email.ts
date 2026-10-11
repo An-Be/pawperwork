@@ -9,7 +9,7 @@ import { STATUS_LABEL, type VaxStatus } from "@/lib/vax";
  * rather than failing the intake submission or the cron run.
  */
 const apiKey = process.env.RESEND_API_KEY;
-const from = process.env.EMAIL_FROM ?? "Pawperwork <onboarding@resend.dev>";
+const from = process.env.EMAIL_FROM ?? "Pawperwork <noreply@pawperwork.pet>";
 
 const resend = apiKey ? new Resend(apiKey) : null;
 
