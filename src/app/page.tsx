@@ -10,7 +10,7 @@ import { site } from "@/config/site";
 import { isClerkConfigured } from "@/lib/server/env";
 
 export const metadata: Metadata = {
-  title: { absolute: `${site.name}: pet intake forms and vaccination tracking` },
+  title: { absolute: site.title },
   description: site.description,
 };
 
@@ -64,7 +64,7 @@ export default function LandingPage() {
         <main className="flex flex-1 flex-col gap-14 py-10">
           <section className="flex flex-col gap-5">
             <p className="label text-mute">For groomers, boarders, daycares and walkers</p>
-            <h1 className="display text-5xl sm:text-6xl">{site.tagline}</h1>
+            <h1 className="display text-5xl sm:text-6xl">Paperwork that keeps up with the pets.</h1>
             <p className="text-sm text-mute">
               Send one link. Get pet profiles, vaccination records and signed waivers back, plus an automatic nudge to
               every owner whose paperwork is about to lapse.
