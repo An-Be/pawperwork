@@ -10,11 +10,8 @@ import { site } from "@/config/site";
 import { isClerkConfigured } from "@/lib/server/env";
 
 export const metadata: Metadata = {
-  // absolute: skip the layout's "%s · Pet Intake" template; the brand leads here.
-  title: { absolute: "Pawperwork: Intake and Vax Tracking for Pet Care" },
-  description:
-    "One intake link for your grooming, boarding, or daycare business. Owners " +
-    "submit profiles, upload vax records, and e-sign waivers from their phone.",
+  title: { absolute: site.title },
+  description: site.description,
 };
 
 const STEPS = [
@@ -67,7 +64,7 @@ export default function LandingPage() {
         <main className="flex flex-1 flex-col gap-14 py-10">
           <section className="flex flex-col gap-5">
             <p className="label text-mute">For groomers, boarders, daycares and walkers</p>
-            <h1 className="display text-5xl sm:text-6xl">{site.tagline}</h1>
+            <h1 className="display text-5xl sm:text-6xl">Paperwork that keeps up with the pets.</h1>
             <p className="text-sm text-mute">
               Send one link. Get pet profiles, vaccination records and signed waivers back, plus an automatic nudge to
               every owner whose paperwork is about to lapse.
@@ -82,42 +79,21 @@ export default function LandingPage() {
             </div>
           </section>
 
-      <section className="bg-warm-glow">
-        <div className="mx-auto max-w-3xl px-4 pt-14 pb-16 text-center sm:pt-20">
-          <span className="inline-flex items-center rounded-full bg-accent px-4 py-1.5 text-sm font-medium text-accent-foreground">
-            🐾 For groomers, boarders, daycares and walkers
-          </span>
-          <h1 className="mt-5 font-heading text-4xl font-extrabold tracking-tight text-balance sm:text-5xl">
-            Paperwork that keeps up with the pets.
-          </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-lg text-pretty text-muted-foreground">
-            Send one link. Get pet profiles, vaccination records and signed
-            waivers back — and an automatic nudge to every owner whose
-            paperwork is about to lapse.
-          </p>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            {/* Renders an <a>, so Base UI needs nativeButton={false}. */}
-            <Button
-              size="lg"
-              nativeButton={false}
-              render={<Link href="/sign-up" />}
-            >
-              Set up your intake link
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              nativeButton={false}
-              render={<Link href="/sign-in" />}
-            >
-              Sign in
-            </Button>
-          </div>
-          <p className="mt-4 text-sm text-muted-foreground">
-            No booking. No payments. No point of sale.
-          </p>
-        </div>
-      </section>
+          <section>
+            <SectionLabel n="01">How it works</SectionLabel>
+            <ol className="grid border border-ink sm:grid-cols-3">
+              {STEPS.map((step, index) => (
+                <li
+                  key={step.title}
+                  className="flex flex-col gap-2 border-ink p-5 not-first:border-t sm:not-first:border-t-0 sm:not-first:border-l"
+                >
+                  <span className="display text-3xl">{String(index + 1).padStart(2, "0")}</span>
+                  <p className="font-display text-lg font-medium tracking-[-0.02em]">{step.title}</p>
+                  <p className="text-sm text-mute">{step.body}</p>
+                </li>
+              ))}
+            </ol>
+          </section>
 
           <section>
             <SectionLabel n="02">What&apos;s included</SectionLabel>

@@ -2,9 +2,12 @@
 // Everything user-facing that names the tool reads from here.
 export const site = {
   name: "Pawperwork",
+  /** Browser tab and search result title: brand first, then the plain-language promise. Under 60 chars. */
+  title: "Pawperwork: Intake and Vax Tracking for Pet Care",
+  /** Search result snippet and link previews. Under 160 chars. */
   description:
-    "One intake link for groomers, boarders, daycares and walkers. Collect pet profiles, " +
-    "vaccination records and signed waivers, and stop chasing expired paperwork.",
+    "One intake link for your grooming, boarding, or daycare business. Owners submit profiles, " +
+    "upload vax records, and e-sign waivers from their phone.",
   /** Shown in the footer. Keep it short. */
   tagline: "Pet paperwork, handled.",
   /** Footer credit link. */

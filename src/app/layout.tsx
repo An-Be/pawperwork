@@ -21,14 +21,9 @@ const spaceGrotesk = localFont({
 });
 
 export const metadata: Metadata = {
-  title: {
-    default: "Pawperwork: Intake and Vax Tracking for Pet Care",
-    template: "%s · Pawperwork",
-  },
-  description:
-    "One branded intake link for groomers, boarders, daycares and walkers. " +
-    "Collect pet profiles, vaccination records and signed waivers, and never " +
-    "chase an expired rabies certificate again.",
+  title: { default: site.title, template: `%s · ${site.name}` },
+  description: site.description,
+  robots: site.indexable ? undefined : { index: false, follow: false },
 };
 
 export const viewport: Viewport = {
