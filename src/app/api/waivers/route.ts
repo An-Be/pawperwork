@@ -1,43 +1,43 @@
-import type { NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
-import { requireBusinessApi } from "@/lib/auth";
-import { jsonError } from "@/lib/api-errors";
-import { parseBody } from "@/lib/route-input";
+import { recordAudit } from "@/lib/server/audit";
+import { requireBusinessApi } from "@/lib/server/auth";
+import { db } from "@/lib/server/db";
+import { json, parseJsonBody, rejectCrossSite } from "@/lib/server/http";
 import { waiverCreateSchema } from "@/lib/validation";
-import { recordAudit } from "@/lib/audit";
 
-export async function GET(request: NextRequest) {
-  try {
-    const business = await requireBusinessApi(request);
-    const waivers = await prisma.waiver.findMany({
-      where: { businessId: business.id },
-      orderBy: { createdAt: "asc" },
-      include: { _count: { select: { signatures: true } } },
-    });
-    return Response.json({ waivers });
-  } catch (error) {
-    return jsonError(error);
-  }
+const MAX_WAIVER_BYTES = 64 * 1024;
+
+export async function GET() {
+  const auth = await requireBusinessApi();
+  if (!auth.ok) return auth.response;
+  const waivers = await db.waiver.findMany({
+    where: { businessId: auth.business.id },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, title: true, bodyMarkdown: true, version: true, _count: { select: { signatures: true } } },
+  });
+  return json({ waivers });
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const business = await requireBusinessApi(request);
-    const data = parseBody(waiverCreateSchema, await request.json());
-    const waiver = await prisma.waiver.create({
-      data: { businessId: business.id, ...data },
-    });
+export async function POST(req: Request) {
+  const blocked = rejectCrossSite(req);
+  if (blocked) return blocked;
+  const auth = await requireBusinessApi();
+  if (!auth.ok) return auth.response;
+  const { business } = auth;
+  const body = await parseJsonBody(req, waiverCreateSchema, MAX_WAIVER_BYTES);
+  if (!body.ok) return body.response;
 
-    await recordAudit({
-      businessId: business.id,
-      action: "waiver.create",
-      targetType: "Waiver",
-      targetId: waiver.id,
-      metadata: { title: waiver.title },
-    });
+  const waiver = await db.waiver.create({
+    data: { businessId: business.id, ...body.data },
+    select: { id: true, title: true, bodyMarkdown: true, version: true },
+  });
 
-    return Response.json(waiver, { status: 201 });
-  } catch (error) {
-    return jsonError(error);
-  }
+  await recordAudit({
+    businessId: business.id,
+    action: "waiver.create",
+    targetType: "Waiver",
+    targetId: waiver.id,
+    metadata: { title: waiver.title },
+  });
+
+  return json(waiver, 201);
 }

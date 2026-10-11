@@ -1,48 +1,39 @@
 import Link from "next/link";
-import { PawPrint } from "lucide-react";
-import { AuthNotConfigured } from "@/components/ui/auth-not-configured";
-import { SignInOtpForm } from "@/components/ui/sign-in-otp-form";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { isClerkConfigured } from "@/lib/env";
+import { AuthNotConfigured } from "@/components/auth/auth-not-configured";
+import { SignInOtpForm } from "@/components/auth/sign-in-otp-form";
+import { SiteFooter } from "@/components/site/site-footer";
+import { SiteHeader } from "@/components/site/site-header";
+import { Shell } from "@/components/ui/shell";
+import { isClerkConfigured } from "@/lib/server/env";
 
 export const metadata = { title: "Sign in" };
 
 export default function SignInPage() {
-  if (!isClerkConfigured()) {
-    return (
-      <main className="flex flex-1 items-center justify-center p-6">
-        <AuthNotConfigured action="sign-in" />
-      </main>
-    );
-  }
-
   return (
-    <main className="bg-warm-glow flex flex-1 items-center justify-center p-6">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="items-center text-center">
-          <span className="mb-1 flex size-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-            <PawPrint className="size-5" aria-hidden />
-          </span>
-          <CardTitle className="font-heading text-lg font-bold">
-            Welcome back
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Sign in to your dashboard
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <SignInOtpForm />
-          <p className="text-center text-sm text-muted-foreground">
-            New here?{" "}
-            <Link
-              href="/sign-up"
-              className="font-medium text-primary underline underline-offset-4"
-            >
-              Create an account
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
-    </main>
+    <>
+      <SiteHeader />
+      <Shell>
+        <main className="flex flex-1 flex-col justify-center gap-8 py-10">
+          {isClerkConfigured() ? (
+            <>
+              <div className="flex flex-col gap-3">
+                <h1 className="display text-5xl">Welcome back.</h1>
+                <p className="text-sm text-mute">Sign in to your dashboard.</p>
+              </div>
+              <SignInOtpForm />
+              <p className="text-sm text-mute">
+                New here?{" "}
+                <Link href="/sign-up" className="text-ink underline underline-offset-2">
+                  Create an account
+                </Link>
+              </p>
+            </>
+          ) : (
+            <AuthNotConfigured action="sign-in" />
+          )}
+        </main>
+        <SiteFooter />
+      </Shell>
+    </>
   );
 }

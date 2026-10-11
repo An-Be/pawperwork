@@ -1,35 +1,27 @@
-import type { NextRequest } from "next/server";
-import { requireBusinessApi } from "@/lib/auth";
-import { jsonError } from "@/lib/api-errors";
-import { parseIdParam } from "@/lib/route-input";
-import { getClientDetail } from "@/lib/queries";
-import { packetFilename, renderIntakePacket } from "@/lib/intake-packet";
+import { requireBusinessApi } from "@/lib/server/auth";
+import { notFound } from "@/lib/server/http";
+import { packetFilename, renderIntakePacket } from "@/lib/server/intake-packet";
+import { getClientDetail } from "@/lib/server/queries";
+import { parseId } from "@/lib/validation";
 
-/** @react-pdf/renderer needs Node APIs, so this must not run on edge. */
+/** @react-pdf/renderer needs Node APIs. */
 export const runtime = "nodejs";
 
-export async function GET(
-  request: NextRequest,
-  ctx: RouteContext<"/api/clients/[id]/packet">,
-) {
-  try {
-    const business = await requireBusinessApi(request);
-    const { id } = await ctx.params;
-    const clientId = parseIdParam(id);
-    const detail = await getClientDetail(business.id, clientId);
-    if (!detail) {
-      return Response.json({ error: "Client not found" }, { status: 404 });
-    }
+export async function GET(_req: Request, ctx: RouteContext<"/api/clients/[id]/packet">) {
+  const auth = await requireBusinessApi();
+  if (!auth.ok) return auth.response;
+  const clientId = parseId((await ctx.params).id);
+  if (!clientId) return notFound();
 
-    const buffer = await renderIntakePacket(business.name, detail);
+  const detail = await getClientDetail(auth.business.id, clientId);
+  if (!detail) return notFound();
 
-    return new Response(new Uint8Array(buffer), {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${packetFilename(detail)}"`,
-      },
-    });
-  } catch (error) {
-    return jsonError(error);
-  }
+  const buffer = await renderIntakePacket(auth.business.name, detail);
+  return new Response(new Uint8Array(buffer), {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="${packetFilename(detail)}"`,
+      "Cache-Control": "private, no-store",
+    },
+  });
 }

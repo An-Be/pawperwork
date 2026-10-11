@@ -1,82 +1,66 @@
-import type { NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
-import { waiverDocumentHash } from "@/lib/hash";
-import { intakeSubmissionSchema } from "@/lib/validation";
-import { parseBody, parseSlugParam } from "@/lib/route-input";
-import { jsonError } from "@/lib/api-errors";
-import { intakeConfirmationEmail, sendEmail } from "@/lib/email";
-import { clientIp, enforceRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/server/client-ip";
+import { db } from "@/lib/server/db";
+import { intakeConfirmationEmail, sendEmail } from "@/lib/server/email";
+import { waiverDocumentHash } from "@/lib/server/hash";
+import { json, notFound, parseJsonBody, rejectCrossSite, tooManyRequests } from "@/lib/server/http";
+import { checkRateLimit } from "@/lib/server/rate-limit";
+import { intakeSubmissionSchema, parseSlug } from "@/lib/validation";
+
+// A family with several pets, notes and a few record links stays well under this.
+const MAX_INTAKE_BYTES = 64 * 1024;
 
 /**
- * Public, unauthenticated endpoint (spec §8). Creates the client, pets,
- * vaccinations and waiver signatures atomically — a half-saved intake would
- * leave the business chasing paperwork that the owner believes they submitted.
+ * Public, unauthenticated endpoint. Creates the client, pets, vaccinations and
+ * waiver signatures atomically: a half-saved intake would leave the business
+ * chasing paperwork that the owner believes they submitted.
  */
-export async function POST(
-  request: NextRequest,
-  ctx: RouteContext<"/api/intake/[slug]/submit">,
-) {
-  try {
-    const { slug } = await ctx.params;
-    return await submitIntake(request, slug);
-  } catch (error) {
-    return jsonError(error);
-  }
-}
+export async function POST(req: Request, ctx: RouteContext<"/api/intake/[slug]/submit">) {
+  const blocked = rejectCrossSite(req);
+  if (blocked) return blocked;
 
-async function submitIntake(
-  request: NextRequest,
-  slug: string,
-): Promise<Response> {
-  // By IP first, before any DB lookup — caps probing across many slugs, not
+  // By IP first, before any DB lookup: caps probing across many slugs, not
   // just repeated hits on one. A real family resubmitting after a mistake
   // stays well under this; a script trying slugs does not.
-  await enforceRateLimit(`intake-submit:ip:${clientIp(request)}`, 5, 10 * 60_000);
+  const ip = getClientIp(req);
+  const byIp = await checkRateLimit(`intake-submit:ip:${ip}`, { limit: 5, windowSeconds: 600 });
+  if (!byIp.allowed) return tooManyRequests(byIp.retryAfterSeconds);
 
-  const parsedSlug = parseSlugParam(slug);
-  const business = await prisma.business.findUnique({
-    where: { slug: parsedSlug },
+  const slug = parseSlug((await ctx.params).slug);
+  if (!slug) return notFound();
+  const business = await db.business.findUnique({
+    where: { slug },
     select: { id: true, name: true, slug: true },
   });
-  if (!business) {
-    return Response.json({ error: "Intake form not found" }, { status: 404 });
-  }
+  if (!business) return notFound();
 
-  // By slug too, so one business's form can't be flooded from many IPs —
+  // By slug too, so one business's form can't be flooded from many IPs:
   // generous enough for a genuinely busy intake day.
-  await enforceRateLimit(`intake-submit:slug:${parsedSlug}`, 30, 10 * 60_000);
+  const bySlug = await checkRateLimit(`intake-submit:slug:${slug}`, { limit: 30, windowSeconds: 600 });
+  if (!bySlug.allowed) return tooManyRequests(bySlug.retryAfterSeconds);
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-
-  const data = parseBody(intakeSubmissionSchema, body);
+  const body = await parseJsonBody(req, intakeSubmissionSchema, MAX_INTAKE_BYTES);
+  if (!body.ok) return body.response;
+  const data = body.data;
 
   // Signatures must reference waivers belonging to THIS business, and are
   // hashed against the body text as it exists right now.
   const waiverIds = [...new Set(data.signatures.map((s) => s.waiverId))];
   const waivers = waiverIds.length
-    ? await prisma.waiver.findMany({
+    ? await db.waiver.findMany({
         where: { id: { in: waiverIds }, businessId: business.id },
+        select: { id: true, version: true, bodyMarkdown: true },
       })
     : [];
   if (waivers.length !== waiverIds.length) {
-    return Response.json(
-      { error: "One or more waivers do not belong to this business" },
-      { status: 422 },
-    );
+    return json({ error: "That waiver changed while you were filling in the form. Reload and sign again." }, 409);
   }
   const waiverById = new Map(waivers.map((waiver) => [waiver.id, waiver]));
 
-  // Audit trail for the e-signature (spec §3).
-  const ipAddress = clientIp(request);
-  const userAgent = request.headers.get("user-agent");
+  // Audit trail for the e-signature.
+  const userAgent = req.headers.get("user-agent")?.slice(0, 500) ?? null;
 
-  const result = await prisma.$transaction(async (tx) => {
-    const client = await tx.client.create({
+  const client = await db.$transaction(async (tx) => {
+    const created = await tx.client.create({
       data: {
         businessId: business.id,
         firstName: data.owner.firstName,
@@ -84,12 +68,13 @@ async function submitIntake(
         email: data.owner.email,
         phone: data.owner.phone,
       },
+      select: { id: true, firstName: true, email: true },
     });
 
     for (const pet of data.pets) {
       await tx.pet.create({
         data: {
-          clientId: client.id,
+          clientId: created.id,
           name: pet.name,
           species: pet.species,
           breed: pet.breed,
@@ -109,41 +94,44 @@ async function submitIntake(
               administeredAt: vax.administeredAt,
               expiresAt: vax.expiresAt,
               documentUrl: vax.documentUrl,
-              // The business verifies uploads itself (spec §3).
+              // The business verifies uploads itself.
               verified: false,
             })),
           },
         },
+        select: { id: true },
       });
     }
 
     for (const signature of data.signatures) {
-      const waiver = waiverById.get(signature.waiverId)!;
+      const waiver = waiverById.get(signature.waiverId);
+      if (!waiver) continue; // unreachable: checked above
       await tx.waiverSignature.create({
         data: {
           waiverId: waiver.id,
-          clientId: client.id,
+          clientId: created.id,
           // Pin the version signed; later edits bump Waiver.version and must
           // not retroactively alter this record.
           waiverVersion: waiver.version,
           signatureText: signature.signatureText,
           documentHash: waiverDocumentHash(waiver.bodyMarkdown, waiver.version),
-          ipAddress,
+          ipAddress: ip,
           userAgent,
         },
+        select: { id: true },
       });
     }
 
-    return client;
+    return created;
   });
 
   // Confirmation email is best-effort: the intake is already committed.
   const confirmation = intakeConfirmationEmail({
     businessName: business.name,
-    clientFirstName: result.firstName,
+    clientFirstName: client.firstName,
     petNames: data.pets.map((pet) => pet.name),
   });
-  await sendEmail({ to: result.email, ...confirmation });
+  await sendEmail({ to: client.email, ...confirmation });
 
-  return Response.json({ ok: true, clientId: result.id }, { status: 201 });
+  return json({ ok: true }, 201);
 }

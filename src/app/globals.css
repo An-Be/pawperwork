@@ -1,201 +1,72 @@
 @import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-@import "@clerk/ui/themes/shadcn.css";
-
-@custom-variant dark (&:is(.dark *));
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  /* Body text: Geist Sans — clean and legible for a form filled on a phone.
-     Headings: Nunito — rounded and warm, carries the "friendly
-     neighborhood pet business" personality. See src/app/layout.tsx. */
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-  --font-heading: var(--font-nunito), var(--font-geist-sans), ui-sans-serif,
-    sans-serif;
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  /* A touch more generous than shadcn's default — this app should feel soft
-     and huggable, never clinical. */
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
-}
 
 /*
- * "Warm & cozy" palette — terracotta on cream, sage for healthy/valid states.
- * Chosen over a cooler "soft trust" (sage+blue, more clinical) or a bolder
- * "vibrant" (coral+teal, more corporate-SaaS) direction: this app's primary
- * surface is a form a pet owner fills out on their phone before a grooming
- * appointment, so it should read as a well-loved neighborhood shop rather
- * than a medical portal.
- */
-:root {
-  --background: oklch(0.9780 0.0100 75);
-  --foreground: oklch(0.2700 0.0260 45);
-  --card: oklch(0.9950 0.0050 75);
-  --card-foreground: oklch(0.2700 0.0260 45);
-  --popover: oklch(0.9950 0.0050 75);
-  --popover-foreground: oklch(0.2700 0.0260 45);
-  --primary: oklch(0.5750 0.1480 40);
-  --primary-foreground: oklch(0.9850 0.0100 75);
-  --secondary: oklch(0.9350 0.0280 60);
-  --secondary-foreground: oklch(0.3400 0.0380 42);
-  --muted: oklch(0.9450 0.0190 62);
-  --muted-foreground: oklch(0.5100 0.0320 46);
-  --accent: oklch(0.9050 0.0460 55);
-  --accent-foreground: oklch(0.3000 0.0380 40);
-  --destructive: oklch(0.5750 0.2050 25);
-  --border: oklch(0.8950 0.0260 58);
-  --input: oklch(0.8950 0.0260 58);
-  --ring: oklch(0.5750 0.1480 40);
-  /* Status + chart hues, kept distinct from the terracotta primary so a vax
-     badge never reads as "this is also a button". */
-  --chart-1: oklch(0.5750 0.1480 40); /* terracotta — primary */
-  --chart-2: oklch(0.6100 0.1050 145); /* sage — valid / healthy */
-  --chart-3: oklch(0.7200 0.1450 75); /* golden — expiring soon */
-  --chart-4: oklch(0.5600 0.1250 230); /* dusty blue — info */
-  --chart-5: oklch(0.5900 0.1700 15); /* warm rose-red — expired */
-  --radius: 0.85rem;
-  --sidebar: oklch(0.9550 0.0170 68);
-  --sidebar-foreground: oklch(0.2700 0.0260 45);
-  --sidebar-primary: oklch(0.5750 0.1480 40);
-  --sidebar-primary-foreground: oklch(0.9850 0.0100 75);
-  --sidebar-accent: oklch(0.9150 0.0330 58);
-  --sidebar-accent-foreground: oklch(0.3000 0.0380 40);
-  --sidebar-border: oklch(0.8950 0.0260 58);
-  --sidebar-ring: oklch(0.5750 0.1480 40);
-  /* Soft, warm-tinted shadow instead of a neutral gray one — a gray shadow
-     under a cream card reads muddy. Used by @layer base below. */
-  --shadow-color: 30 40% 30%;
-}
-
-.dark {
-  --background: oklch(0.2000 0.0190 40);
-  --foreground: oklch(0.9600 0.0130 70);
-  --card: oklch(0.2500 0.0210 42);
-  --card-foreground: oklch(0.9600 0.0130 70);
-  --popover: oklch(0.2500 0.0210 42);
-  --popover-foreground: oklch(0.9600 0.0130 70);
-  --primary: oklch(0.6900 0.1400 42);
-  --primary-foreground: oklch(0.1700 0.0200 40);
-  --secondary: oklch(0.3200 0.0230 42);
-  --secondary-foreground: oklch(0.9400 0.0130 70);
-  --muted: oklch(0.3000 0.0210 42);
-  --muted-foreground: oklch(0.7300 0.0220 62);
-  --accent: oklch(0.3450 0.0300 46);
-  --accent-foreground: oklch(0.9400 0.0130 70);
-  --destructive: oklch(0.6600 0.2000 25);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.6900 0.1400 42);
-  --chart-1: oklch(0.6900 0.1400 42);
-  --chart-2: oklch(0.6900 0.1150 145);
-  --chart-3: oklch(0.7600 0.1500 75);
-  --chart-4: oklch(0.6600 0.1250 230);
-  --chart-5: oklch(0.6700 0.1750 15);
-  --sidebar: oklch(0.2300 0.0210 44);
-  --sidebar-foreground: oklch(0.9600 0.0130 70);
-  --sidebar-primary: oklch(0.6900 0.1400 42);
-  --sidebar-primary-foreground: oklch(0.1700 0.0200 40);
-  --sidebar-accent: oklch(0.3200 0.0260 46);
-  --sidebar-accent-foreground: oklch(0.9400 0.0130 70);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.6900 0.1400 42);
-  --shadow-color: 20 60% 4%;
+  Monochrome system shared by every tiny tool: two voices (Space Grotesk for
+  display, Geist Mono for everything else), 1px ink borders, zero radius,
+  numbered section labels. Change tokens here, never hard-code colors.
+*/
+@theme {
+  --color-ink: #000000;
+  --color-paper: #ffffff;
+  --color-mute: #555555;
+  --color-faint: #8a8a8a;
+  --color-wash: #f2f2f2;
+  /* Hairline for site chrome (the header rule). Content borders stay ink. */
+  --color-rule: #e5e5e5;
+  --color-line: #000000;
+  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
+  html {
+    -webkit-text-size-adjust: 100%;
   }
   body {
-    @apply bg-background text-foreground;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
   }
-  html {
-    @apply font-sans;
+  ::selection {
+    background: var(--color-ink);
+    color: var(--color-paper);
   }
-  h1,
-  h2,
-  h3 {
-    @apply font-heading;
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
   }
-  /* Every shadcn Card, popover and the toaster picks up a soft warm-tinted
-     lift automatically — no need to hand-edit the generated primitives in
-     components/ui/, which `npx shadcn add` may overwrite. */
-  [data-slot="card"] {
-    box-shadow:
-      0 1px 2px -1px hsl(var(--shadow-color) / 0.06),
-      0 8px 20px -6px hsl(var(--shadow-color) / 0.10);
+  /* Chrome defaults native buttons to cursor: default; preflight doesn't patch it. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="switch"]:not(:disabled),
+  summary {
+    cursor: pointer;
   }
-  [data-slot="popover-content"],
-  [data-slot="select-content"] {
-    box-shadow:
-      0 4px 10px -4px hsl(var(--shadow-color) / 0.12),
-      0 12px 28px -8px hsl(var(--shadow-color) / 0.16);
+  dialog::backdrop {
+    background: rgb(0 0 0 / 0.4);
   }
 }
 
-@layer utilities {
-  /* Subtle warm radial glow for hero / empty-state backgrounds. Decorative
-     only — never carries meaning, so it needs no alt text or aria handling. */
-  .bg-warm-glow {
-    background-image:
-      radial-gradient(
-        60% 50% at 15% 0%,
-        oklch(0.93 0.05 55 / 60%) 0%,
-        transparent 100%
-      ),
-      radial-gradient(
-        50% 40% at 100% 20%,
-        oklch(0.88 0.07 145 / 35%) 0%,
-        transparent 100%
-      );
-  }
-  .dark .bg-warm-glow {
-    background-image:
-      radial-gradient(
-        60% 50% at 15% 0%,
-        oklch(0.32 0.05 45 / 50%) 0%,
-        transparent 100%
-      ),
-      radial-gradient(
-        50% 40% at 100% 20%,
-        oklch(0.3 0.06 145 / 30%) 0%,
-        transparent 100%
-      );
-  }
+/* Uppercase mono micro-label: section labels, metadata, small actions. */
+@utility label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* Tight display type for headlines and big numbers. */
+@utility display {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 0.92;
 }

@@ -1,16 +1,12 @@
-import type { NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
-import { ReminderType } from "@/generated/prisma/enums";
-import {
-  currentRecordForType,
-  daysUntil,
-  dueReminder,
-  parseVaxRequirements,
-} from "@/lib/vax";
-import { sendEmail, vaxExpiredEmail, vaxExpiringEmail } from "@/lib/email";
+import { timingSafeEqual } from "node:crypto";
+import { ReminderType } from "@/lib/generated/prisma/enums";
+import { db } from "@/lib/server/db";
+import { sendEmail, vaxExpiredEmail, vaxExpiringEmail } from "@/lib/server/email";
+import { json } from "@/lib/server/http";
+import { currentRecordForType, daysUntil, dueReminder, parseVaxRequirements } from "@/lib/vax";
 
 /**
- * Daily reminder cron (spec §3, §9). Invoked by Vercel Cron — see vercel.json.
+ * Daily reminder cron. Invoked by Vercel Cron — see vercel.json.
  *
  * For every business, walk required vaccine types, find the record that
  * currently governs each type, and work out whether today falls in a reminder
@@ -21,23 +17,26 @@ import { sendEmail, vaxExpiredEmail, vaxExpiringEmail } from "@/lib/email";
 /** Never resend the same reminder for the same record within this window. */
 const DEDUPE_DAYS = 7;
 
-export async function GET(request: NextRequest) {
+/** Constant-time compare, so the secret can't be guessed a character at a time. */
+function secretMatches(provided: string, secret: string): boolean {
+  const a = Buffer.from(provided);
+  const b = Buffer.from(secret);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    return Response.json({ error: "CRON_SECRET is not set" }, { status: 500 });
-  }
-  // Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`.
-  const header = request.headers.get("authorization");
-  const provided =
-    header?.startsWith("Bearer ") ? header.slice(7) : request.nextUrl.searchParams.get("secret");
-  if (provided !== secret) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!secret) return json({ error: "CRON_SECRET is not set" }, 500);
+  // Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`. Header only: a
+  // secret in a query string ends up in access logs.
+  const header = req.headers.get("authorization") ?? "";
+  const provided = header.startsWith("Bearer ") ? header.slice(7) : "";
+  if (!provided || !secretMatches(provided, secret)) return json({ error: "Unauthorized" }, 401);
 
   const now = new Date();
   const dedupeSince = new Date(now.getTime() - DEDUPE_DAYS * 86_400_000);
 
-  const businesses = await prisma.business.findMany({
+  const businesses = await db.business.findMany({
     include: {
       clients: {
         include: { pets: { include: { vaccinations: true } } },
@@ -51,9 +50,7 @@ export async function GET(request: NextRequest) {
   let failed = 0;
 
   for (const business of businesses) {
-    const requirements = parseVaxRequirements(business.vaxRequirements).filter(
-      (requirement) => requirement.required,
-    );
+    const requirements = parseVaxRequirements(business.vaxRequirements).filter((requirement) => requirement.required);
     if (requirements.length === 0) continue;
 
     for (const client of business.clients) {
@@ -68,7 +65,7 @@ export async function GET(request: NextRequest) {
           if (!reminderType) continue;
           considered += 1;
 
-          const alreadySent = await prisma.reminderLog.findFirst({
+          const alreadySent = await db.reminderLog.findFirst({
             where: {
               petId: pet.id,
               vaccinationId: record.id,
@@ -109,7 +106,7 @@ export async function GET(request: NextRequest) {
             continue;
           }
 
-          await prisma.reminderLog.create({
+          await db.reminderLog.create({
             data: {
               businessId: business.id,
               clientId: client.id,
@@ -124,12 +121,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return Response.json({
-    ok: true,
-    ranAt: now.toISOString(),
-    considered,
-    sent,
-    skippedDuplicate,
-    failed,
-  });
+  return json({ ok: true, ranAt: now.toISOString(), considered, sent, skippedDuplicate, failed });
 }
