@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
+import { ComingSoon } from "@/components/site/coming-soon";
+import { site } from "@/config/site";
 
 // Type and color come from the header's nav slot. Buttons reset text-transform, so restate uppercase.
 const navLink = "uppercase hover:text-ink";
@@ -24,9 +26,15 @@ export function AuthControls({ clerkConfigured }: { clerkConfigured: boolean }) 
         <Link href="/sign-in" className={navLink}>
           Sign in
         </Link>
-        <Link href="/sign-up" className={navStrong}>
-          Sign up
-        </Link>
+        {site.signupsOpen ? (
+          <Link href="/sign-up" className={navStrong}>
+            Sign up
+          </Link>
+        ) : (
+          <ComingSoon className={navStrong} align="end">
+            Sign up
+          </ComingSoon>
+        )}
       </>
     );
   }
@@ -39,11 +47,17 @@ export function AuthControls({ clerkConfigured }: { clerkConfigured: boolean }) 
             Sign in
           </button>
         </SignInButton>
-        <SignUpButton mode="modal">
-          <button type="button" className={navStrong}>
+        {site.signupsOpen ? (
+          <SignUpButton mode="modal">
+            <button type="button" className={navStrong}>
+              Sign up
+            </button>
+          </SignUpButton>
+        ) : (
+          <ComingSoon className={navStrong} align="end">
             Sign up
-          </button>
-        </SignUpButton>
+          </ComingSoon>
+        )}
       </Show>
       <Show when="signed-in">
         <Link href="/dashboard" className={navLink}>

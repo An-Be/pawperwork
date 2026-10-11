@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { AuthControls } from "@/components/auth/auth-controls";
+import { ComingSoon } from "@/components/site/coming-soon";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { buttonVariants } from "@/components/ui/button";
@@ -70,9 +71,13 @@ export default function LandingPage() {
               every owner whose paperwork is about to lapse.
             </p>
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Link href="/sign-up" className={buttonVariants({ size: "lg" })}>
-                Set up your intake link
-              </Link>
+              {site.signupsOpen ? (
+                <Link href="/sign-up" className={buttonVariants({ size: "lg" })}>
+                  Set up your intake link
+                </Link>
+              ) : (
+                <ComingSoon className={buttonVariants({ size: "lg", block: true })} side="top">Set up your intake link</ComingSoon>
+              )}
               <Link href="/sign-in" className={buttonVariants({ variant: "outline", size: "lg" })}>
                 Sign in
               </Link>
