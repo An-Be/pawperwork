@@ -11,7 +11,9 @@ const navStrong = "uppercase text-ink hover:text-mute";
 
 /**
  * Header controls for public pages: sign in / sign up when signed out, the
- * dashboard link and user menu when signed in.
+ * dashboard link and user menu when signed in. While accounts are closed
+ * (`site.signupsOpen: false`) Sign in is hidden and Sign up says "Coming soon";
+ * /sign-in still works by URL for existing accounts.
  *
  * `clerkConfigured` is resolved on the server and passed in: every Clerk
  * component needs ClerkProvider, which the root layout omits when there are
@@ -23,9 +25,11 @@ export function AuthControls({ clerkConfigured }: { clerkConfigured: boolean }) 
     // Plain links; the auth pages explain that accounts aren't switched on yet.
     return (
       <>
-        <Link href="/sign-in" className={navLink}>
-          Sign in
-        </Link>
+        {site.signupsOpen && (
+          <Link href="/sign-in" className={navLink}>
+            Sign in
+          </Link>
+        )}
         {site.signupsOpen ? (
           <Link href="/sign-up" className={navStrong}>
             Sign up
@@ -42,11 +46,13 @@ export function AuthControls({ clerkConfigured }: { clerkConfigured: boolean }) 
   return (
     <>
       <Show when="signed-out">
-        <SignInButton mode="modal">
-          <button type="button" className={navLink}>
-            Sign in
-          </button>
-        </SignInButton>
+        {site.signupsOpen && (
+          <SignInButton mode="modal">
+            <button type="button" className={navLink}>
+              Sign in
+            </button>
+          </SignInButton>
+        )}
         {site.signupsOpen ? (
           <SignUpButton mode="modal">
             <button type="button" className={navStrong}>

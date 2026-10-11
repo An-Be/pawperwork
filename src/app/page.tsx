@@ -78,9 +78,11 @@ export default function LandingPage() {
               ) : (
                 <ComingSoon className={buttonVariants({ size: "lg", block: true })} side="top">Set up your intake link</ComingSoon>
               )}
-              <Link href="/sign-in" className={buttonVariants({ variant: "outline", size: "lg" })}>
-                Sign in
-              </Link>
+              {site.signupsOpen && (
+                <Link href="/sign-in" className={buttonVariants({ variant: "outline", size: "lg" })}>
+                  Sign in
+                </Link>
+              )}
             </div>
           </section>
 
