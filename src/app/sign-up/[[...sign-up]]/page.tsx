@@ -19,12 +19,6 @@ export default function SignUpPage() {
             <div className="flex flex-col gap-3">
               <p className="label text-mute">Coming soon</p>
               <h1 className="display text-5xl">New accounts open soon.</h1>
-              <p className="text-sm text-mute">
-                Already have an account?{" "}
-                <Link href="/sign-in" className="text-ink underline underline-offset-2">
-                  Sign in
-                </Link>
-              </p>
             </div>
           ) : isClerkConfigured() ? (
             <>

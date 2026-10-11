@@ -9,8 +9,10 @@ export const site = {
     "One intake link for your grooming, boarding, or daycare business. Owners submit profiles, " +
     "upload vax records, and e-sign waivers from their phone.",
   /**
-   * New business sign-ups. Off until transactional email (Resend) is set up, since
-   * reminders and invites depend on it. Sign-in keeps working for existing accounts.
+   * Business accounts. Off until transactional email (Resend) is set up, since
+   * reminders and invites depend on it. While off, every Sign up control says
+   * "Coming soon", Sign in links are hidden (/sign-in still works by URL), and
+   * only ONBOARDING_ALLOWLIST emails can create a business.
    */
   signupsOpen: false,
   /** Shown in the footer. Keep it short. */

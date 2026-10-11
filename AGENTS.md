@@ -223,6 +223,16 @@ Clerk specifics for this SDK version:
 - No OAuth, so `Referrer-Policy: no-referrer` and COOP `same-origin` stay. Adding
   Google sign-in means switching to TabMath's values (see the module doc).
 
+### Closed sign-ups
+
+`site.signupsOpen: false` hides every Sign up button behind a "Coming soon"
+tooltip and hides the Sign in links (`/sign-in` still works by URL), but Clerk can still create users through its own pages. So creating a
+business is gated too: `/onboarding` and the `createBusiness` action both call
+`onboardingAllowed()` (`src/lib/server/onboarding.ts`, logic in
+`src/lib/onboarding-gate.ts`), which only lets through Clerk-verified emails in
+`ONBOARDING_ALLOWLIST` (comma-separated, server-only) while sign-ups are closed.
+Pair it with Clerk's Restricted sign-up mode. Flip `signupsOpen` to open both.
+
 ### Domain rules
 
 - Vaccination status is **derived, never stored** (`src/lib/vax.ts`): VALID,

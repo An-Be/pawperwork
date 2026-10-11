@@ -6,6 +6,7 @@ import { DEFAULT_WAIVER } from "@/lib/defaults";
 import { currentUserId } from "@/lib/server/auth";
 import { db } from "@/lib/server/db";
 import { isClerkConfigured } from "@/lib/server/env";
+import { onboardingAllowed } from "@/lib/server/onboarding";
 import { uniqueSlug } from "@/lib/slug";
 import { onboardingSchema } from "@/lib/validation";
 import { DEFAULT_VAX_REQUIREMENTS } from "@/lib/vax";
@@ -29,6 +30,11 @@ export async function createBusiness(_previous: OnboardingState, formData: FormD
     select: { id: true },
   });
   if (existing) redirect("/dashboard");
+
+  // Same gate as the page: the action is callable on its own, so it checks too.
+  if (!onboardingAllowed(await currentUserEmail())) {
+    return { error: "New accounts open soon." };
+  }
 
   const parsed = onboardingSchema.safeParse({
     name: formData.get("name"),

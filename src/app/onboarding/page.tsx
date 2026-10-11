@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/site/site-header";
 import { Shell } from "@/components/ui/shell";
 import { currentUserId } from "@/lib/server/auth";
 import { db } from "@/lib/server/db";
+import { onboardingAllowed } from "@/lib/server/onboarding";
 import { currentUserEmail } from "./actions";
 
 export const metadata = { title: "Set up your business" };
@@ -19,6 +20,25 @@ export default async function OnboardingPage() {
   const existing = await db.business.findUnique({ where: { clerkUserId: userId }, select: { id: true } });
   if (existing) redirect("/dashboard");
 
+  const email = await currentUserEmail();
+  if (!onboardingAllowed(email)) {
+    return (
+      <>
+        <SiteHeader />
+        <Shell>
+          <main className="flex flex-1 flex-col justify-center gap-3 py-10">
+            <p className="label text-mute">Coming soon</p>
+            <h1 className="display text-5xl">New accounts open soon.</h1>
+            <p className="text-sm text-mute">
+              Your sign-in worked, but Pawperwork isn&apos;t taking new businesses yet. We&apos;ll be ready shortly.
+            </p>
+          </main>
+          <SiteFooter />
+        </Shell>
+      </>
+    );
+  }
+
   return (
     <>
       <SiteHeader />
@@ -31,7 +51,7 @@ export default async function OnboardingPage() {
               This is what your clients see at the top of your intake form. You can change any of it later in settings.
             </p>
           </div>
-          <OnboardingForm defaultEmail={await currentUserEmail()} />
+          <OnboardingForm defaultEmail={email} />
         </main>
         <SiteFooter />
       </Shell>
