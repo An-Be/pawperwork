@@ -1,0 +1,223 @@
+// Pet Intake & Vax Tracker — data model
+// Prisma 7: `prisma-client` generator requires an explicit output path and a
+// driver adapter at runtime. Datasource URL lives in prisma7.config.ts.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  // Explicit extensions let Node resolve the generated client directly when
+  // running prisma/seed.ts via native TypeScript stripping.
+  importFileExtension = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Business {
+  id   String @id @default(cuid())
+  // One login per business (MVP has no multi-staff roles), mapped to Clerk.
+  clerkUserId String @unique
+  name String
+  slug String @unique
+
+  logoUrl String?
+  email   String
+  phone   String?
+  address String?
+
+  // [{ name: string, required: boolean }]
+  vaxRequirements Json @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clients      Client[]
+  waivers      Waiver[]
+  reminderLogs ReminderLog[]
+  auditLogs    AuditLog[]
+}
+
+model Client {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  firstName String
+  lastName  String
+  email     String
+  phone     String?
+
+  createdAt DateTime @default(now())
+
+  pets             Pet[]
+  waiverSignatures WaiverSignature[]
+  reminderLogs     ReminderLog[]
+
+  @@index([businessId])
+  @@index([businessId, email])
+}
+
+model Pet {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  name      String
+  species   String
+  breed     String?
+  birthDate DateTime?
+  weight    Decimal?  @db.Decimal(6, 2)
+  color     String?
+
+  behaviorNotes String?
+  medicalNotes  String?
+
+  vetName   String?
+  vetPhone  String?
+
+  emergencyName  String?
+  emergencyPhone String?
+
+  createdAt DateTime @default(now())
+
+  vaccinations Vaccination[]
+  reminderLogs ReminderLog[]
+
+  @@index([clientId])
+}
+
+model Vaccination {
+  id    String @id @default(cuid())
+  petId String
+  pet   Pet    @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  // Matches a Business.vaxRequirements[].name
+  type String
+
+  // Nullable: a client may upload a photo before the dates are known
+  // (v2 extracts them from the image). A null expiresAt reads as MISSING.
+  administeredAt DateTime?
+  expiresAt      DateTime?
+
+  documentUrl String?
+  verified    Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  reminderLogs ReminderLog[]
+
+  @@index([petId])
+  @@index([petId, type])
+  @@index([expiresAt])
+}
+
+model Waiver {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  title        String
+  bodyMarkdown String
+  version      Int    @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  signatures WaiverSignature[]
+
+  @@index([businessId])
+}
+
+model WaiverSignature {
+  id       String @id @default(cuid())
+  waiverId String
+  waiver   Waiver @relation(fields: [waiverId], references: [id], onDelete: Cascade)
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Pinned to the version that was actually signed — later edits bump
+  // Waiver.version but must never retroactively change a signature.
+  waiverVersion Int
+  signatureText String
+  signedAt      DateTime @default(now())
+
+  ipAddress String?
+  userAgent String?
+  // SHA-256 of the exact waiver body + version that was signed.
+  documentHash String
+
+  @@index([waiverId])
+  @@index([clientId])
+}
+
+enum ReminderType {
+  EXPIRING_30
+  EXPIRING_14
+  EXPIRING_7
+  EXPIRED
+}
+
+model ReminderLog {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  clientId   String
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  petId      String
+  pet        Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  vaccinationId String?
+  vaccination   Vaccination? @relation(fields: [vaccinationId], references: [id], onDelete: SetNull)
+
+  reminderType ReminderType
+  sentAt       DateTime     @default(now())
+
+  // Dedupe lookups: "has this pet had this reminder type recently?"
+  @@index([petId, reminderType, sentAt])
+  @@index([businessId, sentAt])
+}
+
+/**
+ * Hardening: tamper-evident history of sensitive business-side actions
+ * (verifying a record, editing a waiver, sending a manual reminder). Separate
+ * from WaiverSignature's own audit trail, which covers the client's
+ * e-signature, not what the business did afterward.
+ *
+ * `clientId` is denormalized (no FK — plain indexed string) purely so a
+ * client-scoped view can filter in one query without joining through
+ * whichever entity `targetType`/`targetId` actually point at.
+ */
+model AuditLog {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  clientId   String?
+
+  // e.g. "vaccination.verify", "waiver.update" — see src/lib/audit.ts.
+  action     String
+  targetType String
+  targetId   String?
+  // Small, non-sensitive context (which fields changed, a count) — never a
+  // full copy of PII that's already stored elsewhere.
+  metadata   Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([businessId, createdAt])
+  @@index([clientId, createdAt])
+}
+
+/**
+ * Hardening: fixed-window rate limiting backed by Postgres, since no
+ * Redis/KV is provisioned for this app. A window is `floor(now / windowMs)`,
+ * so `(key, windowStart)` is a natural upsert target — see src/lib/rate-limit.ts.
+ */
+model RateLimitHit {
+  key         String
+  windowStart DateTime
+  count       Int      @default(1)
+
+  @@id([key, windowStart])
+  @@index([windowStart])
+}
